@@ -176,12 +176,12 @@ component
 component spec = H.mkComponent
   { initialState
   , render: spec.render
-  , eval: H.mkEval $ H.defaultEval
-      { handleQuery = handleQuery spec.handleQuery
-      , handleAction = handleAction spec.handleAction spec.handleMessage
-      , initialize = Just (Initialize spec.initialize)
-      , receive = spec.receive
-      , finalize = spec.finalize
+  , eval: H.mkEval
+      { handleQuery: handleQuery spec.handleQuery
+      , handleAction: handleAction spec.handleAction spec.handleMessage
+      , initialize: Just (Initialize spec.initialize)
+      , receive: spec.receive
+      , finalize: spec.finalize
       }
   }
   where
