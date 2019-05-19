@@ -30,7 +30,7 @@ import Web.HTML.HTMLElement as HTMLElement
 import Web.UIEvent.KeyboardEvent as KE
 import Web.UIEvent.MouseEvent as ME
 
-data Action act
+data Action action
   = Search String
   | Highlight Target
   | Select Target (Maybe ME.MouseEvent)
@@ -39,16 +39,16 @@ data Action act
   | Key KE.KeyboardEvent
   | PreventClick ME.MouseEvent
   | SetVisibility Visibility
-  | Initialize (Maybe (Action act))
-  | Action act
+  | Initialize (Maybe (Action action))
+  | Action action
 
 type Action' = Action Void
 
 -----
 -- QUERIES
 
-data Query query ps a
-  = Send (ChildQueryBox ps (Maybe a))
+data Query query slots a
+  = Send (ChildQueryBox slots (Maybe a))
   | Query (query a)
 
 type Query' = Query (Const Void) ()
@@ -65,7 +65,7 @@ data Message
 -- HELPER TYPES
 
 -- | The component slot type for easy use in a parent component
-type Slot query ps msg = H.Slot (Query query ps) msg
+type Slot query slots msg = H.Slot (Query query slots) msg
 
 -- | The component slot type when there is no extension
 type Slot' = Slot (Const Void) () Void
@@ -91,15 +91,15 @@ derive instance ordVisibility :: Ord Visibility
 data InputType = Text | Toggle
 
 -- | The component state
-type State st =
+type State stateRows =
   { inputType :: InputType
   , search :: String
   , debounceTime :: Milliseconds
   , debounceRef :: Maybe (Ref (Maybe Debouncer))
   , visibility :: Visibility
   , highlightedIndex :: Maybe Int
-  , getItemCount :: {| st } -> Int
-  | st
+  , getItemCount :: {| stateRows } -> Int
+  | stateRows
   }
 
 type Debouncer =
@@ -107,55 +107,56 @@ type Debouncer =
   , fiber :: Fiber Unit
   }
 
-type Input st =
+type Input stateRows =
   { inputType :: InputType
   , search :: Maybe String
   , debounceTime :: Maybe Milliseconds
-  , getItemCount :: {| st } -> Int
-  | st
+  , getItemCount :: {| stateRows } -> Int
+  | stateRows
   }
 
-type Spec st query act ps msg m =
-  { -- usual Halogen component spec 
-    render 
-      :: State st 
-      -> H.ComponentHTML (Action act) ps m
-    
+type Spec stateRows query action slots msg m =
+  { -- usual Halogen component spec
+    render
+      :: State stateRows
+      -> H.ComponentHTML (Action action) slots m
+
     -- handle additional actions provided to the component
-  , handleAction 
-      :: act
-      -> H.HalogenM (State st) (Action act) ps msg m Unit
+  , handleAction
+      :: action
+      -> H.HalogenM (State stateRows) (Action action) slots msg m Unit
 
     -- handle additional queries provided to the component
-  , handleQuery 
+  , handleQuery
       :: forall a
-       . query a 
-      -> H.HalogenM (State st) (Action act) ps msg m (Maybe a)
+       . query a
+      -> H.HalogenM (State stateRows) (Action action) slots msg m (Maybe a)
 
     -- handle messages emitted by the component; provide H.raise to simply
     -- raise the Select messages to the parent.
-  , handleMessage 
+  , handleMessage
       :: Message
-      -> H.HalogenM (State st) (Action act) ps msg m Unit
+      -> H.HalogenM (State stateRows) (Action action) slots msg m Unit
 
     -- optionally handle input on parent re-renders
-  , receive 
-      :: Input st 
-      -> Maybe (Action act)
+  , receive
+      :: Input stateRows
+      -> Maybe (Action action)
 
     -- perform some action when the component initializes.
-  , initialize 
-      :: Maybe (Action act)
+  , initialize
+      :: Maybe (Action action)
 
     -- optionally perform some action on initialization. disabled by default.
   , finalize
-      :: Maybe (Action act)
+      :: Maybe (Action action)
   }
 
-type Spec' st m = Spec st (Const Void) Void () Void m
+type Spec' stateRows m = Spec stateRows (Const Void) Void () Void m
 
-defaultSpec :: forall st query act ps msg m. Spec st query act ps msg m
-defaultSpec = 
+defaultSpec :: forall stateRows query action slots msg m
+             . Spec stateRows query action slots msg m
+defaultSpec =
   { render: const (HH.text mempty)
   , handleAction: const (pure unit)
   , handleQuery: const (pure Nothing)
@@ -164,15 +165,15 @@ defaultSpec =
   , initialize: Nothing
   , finalize: Nothing
   }
-  
+
 component
-  :: forall st query act ps msg m
+  :: forall stateRows query action slots msg m
    . MonadAff m
-  => Row.Lacks "debounceRef" st
-  => Row.Lacks "visibility" st
-  => Row.Lacks "highlightedIndex" st
-  => Spec st query act ps msg m
-  -> H.Component HH.HTML (Query query ps) (Input st) msg m
+  => Row.Lacks "debounceRef" stateRows
+  => Row.Lacks "visibility" stateRows
+  => Row.Lacks "highlightedIndex" stateRows
+  => Spec stateRows query action slots msg m
+  -> H.Component HH.HTML (Query query slots) (Input stateRows) msg m
 component spec = H.mkComponent
   { initialState
   , render: spec.render
@@ -185,10 +186,10 @@ component spec = H.mkComponent
       }
   }
   where
-  initialState :: Input st -> State st
+  initialState :: Input stateRows -> State stateRows
   initialState = Builder.build pipeline
     where
-    pipeline = 
+    pipeline =
       Builder.modify (SProxy :: _ "search") (fromMaybe "")
         >>> Builder.modify (SProxy :: _ "debounceTime") (fromMaybe mempty)
         >>> Builder.insert (SProxy :: _ "debounceRef") Nothing
@@ -196,11 +197,11 @@ component spec = H.mkComponent
         >>> Builder.insert (SProxy :: _ "highlightedIndex") Nothing
 
 handleQuery
-  :: forall st query act ps msg m a
+  :: forall stateRows query action slots msg m a
    . MonadAff m
-  => (query a -> H.HalogenM (State st) (Action act) ps msg m (Maybe a))
-  -> Query query ps a
-  -> H.HalogenM (State st) (Action act) ps msg m (Maybe a)
+  => (query a -> H.HalogenM (State stateRows) (Action action) slots msg m (Maybe a))
+  -> Query query slots a
+  -> H.HalogenM (State stateRows) (Action action) slots msg m (Maybe a)
 handleQuery handleQuery' = case _ of
   Send box ->
     H.HalogenM $ liftF $ H.ChildQuery box
@@ -209,21 +210,21 @@ handleQuery handleQuery' = case _ of
     handleQuery' query
 
 handleAction
-  :: forall st act ps msg m
+  :: forall stateRows action slots msg m
    . MonadAff m
-  => Row.Lacks "debounceRef" st
-  => Row.Lacks "visibility" st
-  => Row.Lacks "highlightedIndex" st
-  => (act -> H.HalogenM (State st) (Action act) ps msg m Unit)
-  -> (Message -> H.HalogenM (State st) (Action act) ps msg m Unit)
-  -> Action act
-  -> H.HalogenM (State st) (Action act) ps msg m Unit
+  => Row.Lacks "debounceRef" stateRows
+  => Row.Lacks "visibility" stateRows
+  => Row.Lacks "highlightedIndex" stateRows
+  => (act -> H.HalogenM (State stateRows) (Action action) slots msg m Unit)
+  -> (Message -> H.HalogenM (State stateRows) (Action action) slots msg m Unit)
+  -> Action action
+  -> H.HalogenM (State stateRows) (Action action) slots msg m Unit
 handleAction handleAction' handleMessage = case _ of
   Initialize mbAction -> do
     ref <- H.liftEffect $ Ref.new Nothing
     H.modify_ _ { debounceRef = Just ref }
     for_ mbAction handle
-  
+
   Search str -> do
     st <- H.get
     ref <- H.liftEffect $ map join $ traverse Ref.read st.debounceRef
@@ -336,11 +337,8 @@ handleAction handleAction' handleMessage = case _ of
     -- we know that the getItemCount function will only touch user fields,
     -- and that the state record contains *at least* the user fields, so
     -- this saves us from a set of unnecessary record deletions / modifications
-    userState :: State st -> {| st }
+    userState :: State stateRows -> {| stateRows }
     userState = unsafeCoerce
 
-    lastIndex :: State st -> Int
+    lastIndex :: State stateRows -> Int
     lastIndex = (_ - 1) <<< st.getItemCount <<< userState
-
-
-
