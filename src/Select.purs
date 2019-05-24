@@ -107,13 +107,13 @@ type Debouncer =
   , fiber :: Fiber Unit
   }
 
-type Input st =
-  { inputType :: InputType
-  , search :: Maybe String
-  , debounceTime :: Maybe Milliseconds
-  , getItemCount :: {| st } -> Int
-  | st
-  }
+type HandleInput input st =
+  input -> { inputType :: InputType
+           , search :: Maybe String
+           , debounceTime :: Maybe Milliseconds
+           , getItemCount :: {| st } -> Int
+           | st
+           }
 
 type Spec st query action slots input msg m =
   { -- usual Halogen component spec
@@ -173,11 +173,11 @@ component
   => Row.Lacks "debounceRef" st
   => Row.Lacks "visibility" st
   => Row.Lacks "highlightedIndex" st
-  => (input -> Input st)
+  => HandleInput input st
   -> Spec st query action slots input msg m
   -> H.Component HH.HTML (Query query slots) input msg m
-component mkInput spec = H.mkComponent
-  { initialState: initialState <<< mkInput
+component handleInput spec = H.mkComponent
+  { initialState: initialState
   , render: spec.render
   , eval: H.mkEval $ H.defaultEval
       { handleQuery = handleQuery spec.handleQuery
@@ -188,8 +188,8 @@ component mkInput spec = H.mkComponent
       }
   }
   where
-  initialState :: Input st -> State st
-  initialState = Builder.build pipeline
+  initialState :: input -> State st
+  initialState = (Builder.build pipeline) <<< handleInput
     where
     pipeline =
       Builder.modify (SProxy :: _ "search") (fromMaybe "")
