@@ -58,16 +58,11 @@ type QueryRows = ()
 
 data Message
   = SelectionChanged (Maybe String) (Maybe String)
-type MsgRows =
-  ( mainComponent :: Message
-  -- |
-  -- +
-  )
 type ChildSlots = ()
 type Monad = Aff
-type SelfSlot index = RH.SelfSlot QueryRows MsgRows index
+type SelfSlot index = RH.SelfSlot QueryRows Message index
 
-component :: RH.Component HH.HTML QueryRows Input MsgRows Monad
+component :: RH.Component HH.HTML QueryRows Input Message Monad
 component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
   { render = render
   , handleAction =
@@ -130,17 +125,17 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
             )
             [ HH.text item ]
 
-    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleHalogenSelectEvent = case _ of
       S.Selected idx -> do
         st <- H.get
         let selection = index st.items idx
         H.modify_ _ { selection = selection, visibility = S.Off }
-        RH.raiseV _mainComponent $ SelectionChanged st.selection selection
+        H.raise $ SelectionChanged st.selection selection
       _ -> do
         pure unit
 
-    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleMainAction = case _ of
       Initialize -> do
         -- initialize 3rd-party renderless components (if needed)

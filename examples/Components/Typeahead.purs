@@ -75,18 +75,13 @@ type QueryRows =
 data Message
   = ItemRemoved Location
   | SelectionsChanged (Array Location)
-type MsgRows =
-  ( mainComponent :: Message
-  -- |
-  -- +
-  )
 type ChildSlots =
   ( dropdown :: D.SelfSlot Unit )
 
 type Monad = Aff
-type SelfSlot index = RH.SelfSlot QueryRows MsgRows index
+type SelfSlot index = RH.SelfSlot QueryRows Message index
 
-component :: RH.Component HH.HTML QueryRows Input MsgRows Monad
+component :: RH.Component HH.HTML QueryRows Input Message Monad
 component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
   { render = render
   , handleAction =
@@ -168,10 +163,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
         HH.slot _dropdown unit D.component dropdownInput handler
         where
         _dropdown = SProxy :: SProxy "dropdown"
-        handler =
-          caseV
-            # onV _mainComponent \msg ->
-              Just $ injV _mainComponent $ HandleDropdown msg
+        handler msg = Just $ injV _mainComponent $ HandleDropdown msg
         dropdownInput = { items: [ "Earth", "Mars" ], buttonLabel: "Human Planets" }
 
       renderContainer = whenElem (st.visibility == S.On) \_ ->
@@ -211,7 +203,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
           highlight = "Typeahead__item--highlighted"
                           # guard (st.highlightedIndex == Just index)
 
-    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleHalogenSelectEvent = case _ of
       S.Selected ix -> do
         st <- H.get
@@ -223,7 +215,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
               , available = RD.Success (filter (_ /= item) arr)
               , search = ""
               }
-            RH.raiseV _mainComponent $ SelectionsChanged newSelections
+            H.raise $ SelectionsChanged newSelections
       S.Searched str -> do
         st <- H.get
         -- we'll use an external api to search locations
@@ -232,7 +224,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
         H.modify_ _ { available = items <#> \xs -> difference xs st.selections }
       _ -> pure unit
 
-    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleMainAction = case _ of
       Initialize ->
         -- initialize 3rd-party renderless components (if needed)
@@ -244,7 +236,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
         st <- H.get
         let newSelections = filter (_ /= item) st.selections
         H.modify_ _ { selections = newSelections }
-        RH.raiseV _mainComponent $ ItemRemoved item
+        H.raise $ ItemRemoved item
 
       HandleDropdown msg -> case msg of
         D.SelectionChanged oldSelection newSelection -> do
@@ -263,7 +255,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
           for_ newSelections \selections ->
             H.modify_ _ { selections = selections }
 
-    handleMainQuery :: forall a. Query a -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad (Maybe a)
+    handleMainQuery :: forall a. Query a -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad (Maybe a)
     handleMainQuery = case _ of
       GetSelections reply -> do
          st <- H.get

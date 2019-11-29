@@ -118,21 +118,21 @@ mkHalogenSelectInput =
       >>> Builder.insert (SProxy :: _ "highlightedIndex") Nothing
 
 initializeHalogenSelect
-  :: forall stateRows actionRows slots msgRows m
+  :: forall stateRows actionRows slots message m
    . MonadEffect m
-  => HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots msgRows m Unit
+  => HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots message m Unit
 initializeHalogenSelect = do
   ref <- H.liftEffect $ Ref.new Nothing
   H.modify_ _ { debounceRef = Just ref }
 
 handleHalogenSelectAction
-  :: forall stateRows actionRows slots msgRows m
+  :: forall stateRows actionRows slots message m
    . MonadAff m
   => Row.Lacks "debounceRef" stateRows
   => Row.Lacks "visibility" stateRows
   => Row.Lacks "highlightedIndex" stateRows
-  => (Event -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots msgRows m Unit)
-  -> Action -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots msgRows m Unit
+  => (Event -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots message m Unit)
+  -> Action -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots message m Unit
 handleHalogenSelectAction handleEvent = case _ of
   Search str -> do
     st <- H.get

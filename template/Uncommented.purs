@@ -63,17 +63,20 @@ type QueryRows =
   -- + ()
   )
 
-type Message = Int
-type MsgRows =
-  ( mainComponent :: Message
-  -- |
-  -- +
-  )
+type Msg = Int
+-- type MsgRows =
+--   ( mainComponent :: Message
+--   -- |
+--   -- +
+--   )
+type Message = Msg
+-- type Message = Variant MsgRows
 type ChildSlots = ()
 type Monad = Aff
-type SelfSlot index = RH.SelfSlot QueryRows MsgRows index
 
-component :: RH.Component HH.HTML QueryRows Input MsgRows Monad
+type SelfSlot index = RH.SelfSlot QueryRows Message index
+
+component :: RH.Component HH.HTML QueryRows Input Message Monad
 component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
   { render = render
   , handleAction =
@@ -149,7 +152,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
           )
           [ HH.text item ]
 
-    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleHalogenSelectEvent = case _ of
       S.Searched str -> do
         pure unit
@@ -158,7 +161,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
       S.VisibilityChanged visibility -> do
         pure unit
 
-    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleMainAction = case _ of
       Initialize ->
         -- initialize 3rd-party renderless components (if needed)
@@ -173,7 +176,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
       Receive input ->
         pure unit
 
-    handleMainQuery :: forall a. Query a -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad (Maybe a)
+    handleMainQuery :: forall a. Query a -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad (Maybe a)
     handleMainQuery = case _ of
       Reply reply -> do
         pure $ Just $ reply unit
