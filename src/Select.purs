@@ -66,7 +66,6 @@ data Action
   | Key KE.KeyboardEvent
   | PreventClick ME.MouseEvent
   | SetVisibility Visibility
-  -- | Initialize (Maybe action) -- <-- that will be a problem...
 
 -----
 -- Event
