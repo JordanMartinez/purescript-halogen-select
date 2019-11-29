@@ -52,6 +52,11 @@ data Visibility = Off | On
 derive instance eqVisibility :: Eq Visibility
 derive instance ordVisibility :: Ord Visibility
 
+-- | Text-driven inputs will operate like a normal search-driven selection component.
+-- | Toggle-driven inputs will capture key streams and debounce in reverse (only notify
+-- | about searches when time has expired).
+data InputType = Text | Toggle
+
 _halogenSelect :: SProxy "halogenSelect"
 _halogenSelect = SProxy
 
@@ -73,11 +78,6 @@ data Event
   = Searched String
   | Selected Int
   | VisibilityChanged Visibility
-
--- | Text-driven inputs will operate like a normal search-driven selection component.
--- | Toggle-driven inputs will capture key streams and debounce in reverse (only notify
--- | about searches when time has expired).
-data InputType = Text | Toggle
 
 type HS_STATE r =
     ( inputType :: InputType
