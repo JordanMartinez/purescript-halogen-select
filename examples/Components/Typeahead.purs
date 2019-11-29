@@ -223,7 +223,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
               , available = RD.Success (filter (_ /= item) arr)
               , search = ""
               }
-            H.raise $ injV _mainComponent $ SelectionsChanged newSelections
+            RH.raiseV _mainComponent $ SelectionsChanged newSelections
       S.Searched str -> do
         st <- H.get
         -- we'll use an external api to search locations
@@ -244,7 +244,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
         st <- H.get
         let newSelections = filter (_ /= item) st.selections
         H.modify_ _ { selections = newSelections }
-        H.raise $ injV _mainComponent $ ItemRemoved item
+        RH.raiseV _mainComponent $ ItemRemoved item
 
       HandleDropdown msg -> case msg of
         D.SelectionChanged oldSelection newSelection -> do

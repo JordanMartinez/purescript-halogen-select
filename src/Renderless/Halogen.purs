@@ -94,6 +94,17 @@ component mkInput spec = H.mkComponent
       unCoyoneda (\g → map (maybe (f unit) g) <<< spec.handleQuery) req
   }
 
+-- | Convenience function that reduces boilerplate.
+-- | `raiseV symbol value` == `H.raise (injV symbol value)`
+raiseV ::
+  forall symbol value otherRows stateRows actionRows slots msgRows m
+  . R.Cons symbol value otherRows msgRows
+  ⇒ IsSymbol symbol
+  ⇒ SProxy symbol
+  → value
+  → HalogenM stateRows actionRows slots msgRows m Unit
+raiseV symbol value = H.raise (injV symbol value)
+
 injV
   :: forall sym a r1 r2
   . R.Cons sym a r1 r2

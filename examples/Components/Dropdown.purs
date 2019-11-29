@@ -136,7 +136,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
         st <- H.get
         let selection = index st.items idx
         H.modify_ _ { selection = selection, visibility = S.Off }
-        H.raise $ injV _mainComponent $ SelectionChanged st.selection selection
+        RH.raiseV _mainComponent $ SelectionChanged st.selection selection
       _ -> do
         pure unit
 
