@@ -4,13 +4,14 @@
 -- | below.
 module Select.Setters where
 
-import Prelude (append, ($), (<<<))
-
 import Data.Maybe (Maybe(..))
+import Data.Variant (Variant, inj)
 import Halogen as H
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Select
+import Prelude (append, ($), (<<<))
+import Select (Action(..), HS_ACTION, Target(..), _halogenSelect, Visibility(..))
+import Type.Row (type (+))
 import Web.Event.Event as E
 import Web.UIEvent.FocusEvent as FE
 import Web.UIEvent.KeyboardEvent as KE
@@ -37,14 +38,14 @@ type ToggleProps props =
 -- | renderToggle = div (setToggleProps [ class "btn-class" ]) [ ...html ]
 -- | ```
 setToggleProps
-  :: forall props act
-   . Array (HP.IProp (ToggleProps props) (Action act))
-  -> Array (HP.IProp (ToggleProps props) (Action act))
+  :: forall props actionRows
+   . Array (HP.IProp (ToggleProps props) (Variant (HS_ACTION + actionRows)))
+  -> Array (HP.IProp (ToggleProps props) (Variant (HS_ACTION + actionRows)))
 setToggleProps = append
-  [ HE.onFocus \_ -> Just $ SetVisibility On
-  , HE.onMouseDown $ Just <<< ToggleClick
-  , HE.onKeyDown $ Just <<< Key
-  , HE.onBlur \_ -> Just $ SetVisibility Off
+  [ HE.onFocus \_ -> Just $ inj _halogenSelect $ SetVisibility On
+  , HE.onMouseDown $ Just <<< inj _halogenSelect <<< ToggleClick
+  , HE.onKeyDown $ Just <<< inj _halogenSelect<<< Key
+  , HE.onBlur \_ -> Just $ inj _halogenSelect $ SetVisibility Off
   , HP.tabIndex 0
   , HP.ref (H.RefLabel "select-input")
   ]
@@ -71,15 +72,15 @@ type InputProps props =
 -- | renderInput = input_ (setInputProps [ class "my-class" ])
 -- | ```
 setInputProps
-  :: forall props act
-   . Array (HP.IProp (InputProps props) (Action act))
-  -> Array (HP.IProp (InputProps props) (Action act))
+  :: forall props actionRows
+   . Array (HP.IProp (InputProps props) (Variant (HS_ACTION + actionRows)))
+  -> Array (HP.IProp (InputProps props) (Variant (HS_ACTION + actionRows)))
 setInputProps = append
-  [ HE.onFocus \_ -> Just $ SetVisibility On
-  , HE.onKeyDown $ Just <<< Key
-  , HE.onValueInput $ Just <<< Search
-  , HE.onMouseDown \_ -> Just $ SetVisibility On
-  , HE.onBlur \_ -> Just $ SetVisibility Off
+  [ HE.onFocus \_ -> Just $ inj _halogenSelect $ SetVisibility On
+  , HE.onKeyDown $ Just <<< inj _halogenSelect <<< Key
+  , HE.onValueInput $ Just <<< inj _halogenSelect <<< Search
+  , HE.onMouseDown \_ -> Just $ inj _halogenSelect $ SetVisibility On
+  , HE.onBlur \_ -> Just $ inj _halogenSelect $ SetVisibility Off
   , HP.tabIndex 0
   , HP.ref (H.RefLabel "select-input")
   ]
@@ -106,13 +107,13 @@ type ItemProps props =
 -- | render = renderItem `mapWithIndex` itemsArray
 -- | ```
 setItemProps
-  :: forall props act
+  :: forall props actionRows
    . Int
-  -> Array (HP.IProp (ItemProps props) (Action act))
-  -> Array (HP.IProp (ItemProps props) (Action act))
+  -> Array (HP.IProp (ItemProps props) (Variant (HS_ACTION + actionRows)))
+  -> Array (HP.IProp (ItemProps props) (Variant (HS_ACTION + actionRows)))
 setItemProps index = append
-  [ HE.onMouseDown \ev -> Just (Select (Index index) (Just ev))
-  , HE.onMouseOver \_ -> Just $ Highlight (Index index)
+  [ HE.onMouseDown \ev -> Just $ inj _halogenSelect (Select (Index index) (Just ev))
+  , HE.onMouseOver \_ -> Just $ inj _halogenSelect $ Highlight (Index index)
   ]
 
 -- | A helper function that augments an array of `IProps` with a `MouseDown`
@@ -120,8 +121,8 @@ setItemProps index = append
 -- | from bubbling up a blur event to the DOM. This should be used on the parent
 -- | element that contains your items.
 setContainerProps
-  :: forall props act
-   . Array (HP.IProp (onMouseDown :: ME.MouseEvent | props) (Action act))
-  -> Array (HP.IProp (onMouseDown :: ME.MouseEvent | props) (Action act))
+  :: forall props actionRows
+   . Array (HP.IProp (onMouseDown :: ME.MouseEvent | props) (Variant (HS_ACTION + actionRows)))
+  -> Array (HP.IProp (onMouseDown :: ME.MouseEvent | props) (Variant (HS_ACTION + actionRows)))
 setContainerProps = append
-  [ HE.onMouseDown $ Just <<< PreventClick ]
+  [ HE.onMouseDown $ Just <<< inj _halogenSelect <<< PreventClick ]
