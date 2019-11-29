@@ -7,24 +7,20 @@ module Select where
 
 import Prelude
 
-import Data.Coyoneda (unCoyoneda)
-import Data.Functor.Variant (VariantF)
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Symbol (SProxy(..))
 import Data.Time.Duration (Milliseconds)
 import Data.Traversable (for_, traverse, traverse_)
-import Data.Variant (Variant)
 import Effect.Aff (Fiber, delay, error, forkAff, killFiber)
 import Effect.Aff.AVar (AVar)
 import Effect.Aff.AVar as AVar
 import Effect.Aff.Class (class MonadAff)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Halogen (HalogenQ(..))
 import Halogen as H
-import Halogen.HTML as HH
 import Prim.Row as Row
 import Record.Builder as Builder
+import Renderless.Halogen (HalogenM)
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
 import Web.Event.Event (preventDefault)
@@ -108,46 +104,6 @@ type HS_INPUT r =
   | r
   )
 
-type Component surface queryRows inputRows msgRows m =
-  H.Component surface (VariantF queryRows) { | inputRows } (Variant msgRows) m
-
-type ComponentHTML actionRows slots m =
-  H.ComponentHTML (Variant actionRows) slots m
-
-type HalogenM stateRows actionRows slots msgRows m a =
-  H.HalogenM { | stateRows } (Variant actionRows) slots (Variant msgRows) m a
-
-type Spec stateRows actionRows queryRows slots inputRows msgRows m =
-  { -- usual Halogen component spec
-    render
-      :: { | stateRows }
-      -> ComponentHTML actionRows slots m
-
-    -- handle additional actions provided to the component
-  , handleAction
-      :: Variant actionRows
-      -> HalogenM stateRows actionRows slots msgRows m Unit
-
-    -- handle additional queries provided to the component
-  , handleQuery
-      :: forall a
-       . VariantF queryRows a
-      -> HalogenM stateRows actionRows slots msgRows m (Maybe a)
-
-    -- optionally handle input on parent re-renders
-  , receive
-      :: { | inputRows }
-      -> Maybe (Variant actionRows)
-
-    -- perform some action when the component initializes.
-  , initialize
-      :: Maybe (Variant actionRows)
-
-    -- optionally perform some action on initialization. disabled by default.
-  , finalize
-      :: Maybe (Variant actionRows)
-  }
-
 mkHalogenSelectInput
   :: forall inputRows
    . Row.Lacks "debounceRef" inputRows
@@ -161,40 +117,7 @@ mkHalogenSelectInput =
       >>> Builder.insert (SProxy :: _ "visibility") Off
       >>> Builder.insert (SProxy :: _ "highlightedIndex") Nothing
 
-defaultSpec
-  :: forall stateRows actionRows queryRows slots inputRows msgRows m
-   . Spec stateRows actionRows queryRows slots inputRows msgRows m
-defaultSpec =
-  { render: const (HH.text mempty)
-  , handleAction: const (pure unit)
-  , handleQuery: const (pure Nothing)
-  , receive: const Nothing
-  , initialize: Nothing
-  , finalize: Nothing
-  }
-
-component
-  :: forall stateRows actionRows queryRows slots inputRows msgRows m
-   . Builder.Builder { | inputRows } { | stateRows }
-  -> Spec stateRows actionRows queryRows slots inputRows msgRows m
-  -> Component HH.HTML queryRows inputRows msgRows m
-component inputPipeline spec = H.mkComponent
-  { initialState: Builder.build inputPipeline
-  , render: spec.render
-  , eval: case _ of
-    Initialize a ->
-      traverse_ spec.handleAction spec.initialize $> a
-    Finalize a ->
-      traverse_ spec.handleAction spec.finalize $> a
-    Receive i a ->
-      traverse_ spec.handleAction (spec.receive i) $> a
-    Action action a ->
-      spec.handleAction action $> a
-    Query req f ->
-      unCoyoneda (\g → map (maybe (f unit) g) <<< spec.handleQuery) req
-  }
-
-handleAction
+handleHalogenSelectAction
   :: forall stateRows actionRows slots msgRows m
    . MonadAff m
   => Row.Lacks "debounceRef" stateRows
@@ -202,7 +125,7 @@ handleAction
   => Row.Lacks "highlightedIndex" stateRows
   => (Event -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots msgRows m Unit)
   -> Action -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots msgRows m Unit
-handleAction handleEvent = case _ of
+handleHalogenSelectAction handleEvent = case _ of
   Search str -> do
     st <- H.get
     ref <- H.liftEffect $ map join $ traverse Ref.read st.debounceRef
@@ -299,7 +222,7 @@ handleAction handleEvent = case _ of
 
   where
   -- eta-expansion is necessary to avoid infinite recursion
-  handle act = handleAction handleEvent act
+  handle act = handleHalogenSelectAction handleEvent act
 
   getTargetIndex st = case _ of
     Index i -> i
