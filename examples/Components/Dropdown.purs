@@ -2,84 +2,146 @@ module Components.Dropdown where
 
 import Prelude
 
-import Effect.Aff (Aff)
-import Data.Array ((!!), mapWithIndex, length)
+import Data.Array (index, length, mapWithIndex)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (guard)
+import Data.Symbol (SProxy(..))
+import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
 import Internal.CSS (class_, classes_, whenElem)
+import Record.Builder (Builder)
+import Record.Builder as Builder
+import Renderless.Halogen (caseV, injV, onV)
+import Renderless.Halogen as RH
+import Select (HS_ACTION, HS_INPUT, HS_STATE, _halogenSelect)
 import Select as S
 import Select.Setters as SS
+import Type.Row (type (+))
 
-type Slot =
-  H.Slot S.Query' Message
-
-type State =
-  ( items :: Array String
-  , selection :: Maybe String
-  , buttonLabel :: String
-  )
-
-data Message
-  = SelectionChanged (Maybe String) (Maybe String)
-
--- it is unnecessary to export your own input type, but doing so helps if you
--- would like to set some sensible defaults behind the scenes.
 type Input =
   { items :: Array String
   , buttonLabel :: String
   }
 
-component :: H.Component HH.HTML S.Query' Input Message Aff
-component = S.component input $ S.defaultSpec
+type MAIN_STATE_ROWS r =
+  ( items :: Array String
+  , selection :: Maybe String
+  , buttonLabel :: String
+  | r
+  )
+type InputRows =
+  ( HS_INPUT
+  + MAIN_STATE_ROWS
+  + ()
+  )
+
+type StateRows =
+  ( HS_STATE
+  + MAIN_STATE_ROWS
+  + ()
+  )
+
+_mainComponent :: SProxy "mainComponent"
+_mainComponent = SProxy
+
+data Action
+  = Initialize
+
+type ActionRows =
+  ( mainComponent :: Action
+  | HS_ACTION
+  + ()
+  )
+
+type QueryRows = ()
+
+data Message
+  = SelectionChanged (Maybe String) (Maybe String)
+type MsgRows =
+  ( mainComponent :: Message
+  -- |
+  -- +
+  )
+type ChildSlots = ()
+type Monad = Aff
+type SelfSlot index = RH.SelfSlot QueryRows MsgRows index
+
+component :: RH.Component HH.HTML QueryRows Input MsgRows Monad
+component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
   { render = render
-  , handleEvent = handleEvent
+  , handleAction =
+      caseV
+        -- 3rd-party renderless components' actions
+        # onV _halogenSelect (S.handleHalogenSelectAction handleHalogenSelectEvent)
+
+        -- main component's actions
+        # onV _mainComponent handleMainAction
+  , initialize = Just $ injV _mainComponent Initialize
   }
   where
-  input :: Input -> S.Input State
-  input { items, buttonLabel } =
-    { inputType: S.Toggle
-    , search: Nothing
-    , debounceTime: Nothing
-    , getItemCount: length <<< _.items
-    , items
-    , buttonLabel
-    , selection: Nothing
-    }
+    inputToPipeline :: Input -> { | InputRows }
+    inputToPipeline { items, buttonLabel } =
+      -- labels for main component's non-3rd-party-library state
+      { items
+      , buttonLabel
+      , selection: Nothing
 
-  handleEvent :: S.Event -> H.HalogenM (S.State State) S.Action' () Message Aff Unit
-  handleEvent = case _ of
-    S.Selected ix -> do
-      st <- H.get
-      let selection = st.items !! ix
-      H.modify_ _ { selection = selection, visibility = S.Off }
-      H.raise $ SelectionChanged st.selection selection
-    _ -> pure unit
+      -- == Labels for 3rd-party renderless components ==
+      -- Halogen Select input
+      , inputType: S.Toggle
+      , search: Nothing
+      , debounceTime: Nothing
+      , getItemCount: \state -> length state.items
 
-  render :: S.State State -> H.ComponentHTML S.Action' () Aff
-  render st =
-    HH.div
-      [ class_ "Dropdown" ]
-      [ renderToggle, renderContainer ]
-    where
-    renderToggle =
-      HH.button
-        ( SS.setToggleProps [ class_ "Dropdown__toggle" ] )
-        [ HH.text (fromMaybe st.buttonLabel st.selection) ]
+      -- Other library input
+      }
 
-    renderContainer = whenElem (st.visibility == S.On) \_ ->
+    -- 3rd-party renderless components' `input -> state` functions
+    pipeline :: Builder { | InputRows } { | StateRows }
+    pipeline = S.mkHalogenSelectInput
+      -- >>> OtherComponent.mkInput
+
+    render :: { | StateRows } -> RH.ComponentHTML ActionRows ChildSlots Monad
+    render state =
       HH.div
-        ( SS.setContainerProps [ class_ "Dropdown__container" ] )
-        ( renderItem `mapWithIndex` st.items )
+        [ class_ "Dropdown" ]
+        [ renderToggle, renderContainer ]
       where
-      renderItem index item =
+      renderToggle =
+        HH.button
+          ( SS.setToggleProps [ class_ "Dropdown__toggle" ] )
+          [ HH.text (fromMaybe state.buttonLabel state.selection) ]
+
+      renderContainer = whenElem (state.visibility == S.On) \_ ->
         HH.div
-          ( SS.setItemProps index
-              [ classes_
-                  [ "Dropdown__item"
-                  , "Dropdown__item--highlighted" # guard (st.highlightedIndex == Just index)
-                  ]
-              ]
-          )
-          [ HH.text item ]
+          ( SS.setContainerProps [ class_ "Dropdown__container" ] )
+          ( renderItem `mapWithIndex` state.items )
+        where
+        renderItem index item =
+          HH.div
+            ( SS.setItemProps index
+                [ classes_
+                    [ "Dropdown__item"
+                    , "Dropdown__item--highlighted"
+                        # guard (state.highlightedIndex == Just index)
+                    ]
+                ]
+            )
+            [ HH.text item ]
+
+    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleHalogenSelectEvent = case _ of
+      S.Selected idx -> do
+        st <- H.get
+        let selection = index st.items idx
+        H.modify_ _ { selection = selection, visibility = S.Off }
+        H.raise $ injV _mainComponent $ SelectionChanged st.selection selection
+      _ -> do
+        pure unit
+
+    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleMainAction = case _ of
+      Initialize -> do
+        -- initialize 3rd-party renderless components (if needed)
+        S.initializeHalogenSelect
