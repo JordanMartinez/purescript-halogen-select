@@ -1,4 +1,4 @@
-module Template.Select.Commented where
+module Template.Select.Uncommented where
 
 import Prelude
 
