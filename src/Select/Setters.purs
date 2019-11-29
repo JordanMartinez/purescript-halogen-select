@@ -5,11 +5,12 @@
 module Select.Setters where
 
 import Data.Maybe (Maybe(..))
-import Data.Variant (Variant, inj)
+import Data.Variant (Variant)
 import Halogen as H
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Prelude (append, ($), (<<<))
+import Renderless.Halogen (injAction)
 import Select (Action(..), HS_ACTION, Target(..), _halogenSelect, Visibility(..))
 import Type.Row (type (+))
 import Web.Event.Event as E
@@ -42,10 +43,10 @@ setToggleProps
    . Array (HP.IProp (ToggleProps props) (Variant (HS_ACTION + actionRows)))
   -> Array (HP.IProp (ToggleProps props) (Variant (HS_ACTION + actionRows)))
 setToggleProps = append
-  [ HE.onFocus \_ -> Just $ inj _halogenSelect $ SetVisibility On
-  , HE.onMouseDown $ Just <<< inj _halogenSelect <<< ToggleClick
-  , HE.onKeyDown $ Just <<< inj _halogenSelect<<< Key
-  , HE.onBlur \_ -> Just $ inj _halogenSelect $ SetVisibility Off
+  [ HE.onFocus \_ -> Just $ injAction _halogenSelect $ SetVisibility On
+  , HE.onMouseDown $ Just <<< injAction _halogenSelect <<< ToggleClick
+  , HE.onKeyDown $ Just <<< injAction _halogenSelect<<< Key
+  , HE.onBlur \_ -> Just $ injAction _halogenSelect $ SetVisibility Off
   , HP.tabIndex 0
   , HP.ref (H.RefLabel "select-input")
   ]
@@ -76,11 +77,11 @@ setInputProps
    . Array (HP.IProp (InputProps props) (Variant (HS_ACTION + actionRows)))
   -> Array (HP.IProp (InputProps props) (Variant (HS_ACTION + actionRows)))
 setInputProps = append
-  [ HE.onFocus \_ -> Just $ inj _halogenSelect $ SetVisibility On
-  , HE.onKeyDown $ Just <<< inj _halogenSelect <<< Key
-  , HE.onValueInput $ Just <<< inj _halogenSelect <<< Search
-  , HE.onMouseDown \_ -> Just $ inj _halogenSelect $ SetVisibility On
-  , HE.onBlur \_ -> Just $ inj _halogenSelect $ SetVisibility Off
+  [ HE.onFocus \_ -> Just $ injAction _halogenSelect $ SetVisibility On
+  , HE.onKeyDown $ Just <<< injAction _halogenSelect <<< Key
+  , HE.onValueInput $ Just <<< injAction _halogenSelect <<< Search
+  , HE.onMouseDown \_ -> Just $ injAction _halogenSelect $ SetVisibility On
+  , HE.onBlur \_ -> Just $ injAction _halogenSelect $ SetVisibility Off
   , HP.tabIndex 0
   , HP.ref (H.RefLabel "select-input")
   ]
@@ -112,8 +113,8 @@ setItemProps
   -> Array (HP.IProp (ItemProps props) (Variant (HS_ACTION + actionRows)))
   -> Array (HP.IProp (ItemProps props) (Variant (HS_ACTION + actionRows)))
 setItemProps index = append
-  [ HE.onMouseDown \ev -> Just $ inj _halogenSelect (Select (Index index) (Just ev))
-  , HE.onMouseOver \_ -> Just $ inj _halogenSelect $ Highlight (Index index)
+  [ HE.onMouseDown \ev -> Just $ injAction _halogenSelect (Select (Index index) (Just ev))
+  , HE.onMouseOver \_ -> Just $ injAction _halogenSelect $ Highlight (Index index)
   ]
 
 -- | A helper function that augments an array of `IProps` with a `MouseDown`
@@ -125,4 +126,4 @@ setContainerProps
    . Array (HP.IProp (onMouseDown :: ME.MouseEvent | props) (Variant (HS_ACTION + actionRows)))
   -> Array (HP.IProp (onMouseDown :: ME.MouseEvent | props) (Variant (HS_ACTION + actionRows)))
 setContainerProps = append
-  [ HE.onMouseDown $ Just <<< inj _halogenSelect <<< PreventClick ]
+  [ HE.onMouseDown $ Just <<< injAction _halogenSelect <<< PreventClick ]
