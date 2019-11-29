@@ -4,7 +4,7 @@ import Control.Applicative (pure)
 import Data.Coyoneda (unCoyoneda)
 import Data.Foldable (traverse_)
 import Data.Function ((<<<), const)
-import Data.Functor (($>), map)
+import Data.Functor (($>), map, class Functor)
 import Data.Functor.Variant (FProxy, VariantF)
 import Data.Functor.Variant as VF
 import Data.Maybe (Maybe(..), maybe)
@@ -94,6 +94,15 @@ component mkInput spec = H.mkComponent
       unCoyoneda (\g → map (maybe (f unit) g) <<< spec.handleQuery) req
   }
 
+injAction
+  :: forall sym a r1 r2
+  . R.Cons sym a r1 r2
+  ⇒ IsSymbol sym
+  ⇒ SProxy sym
+  → a
+  → Variant r2
+injAction = V.inj
+
 caseAction :: forall a. Variant () → a
 caseAction = V.case_
 
@@ -107,6 +116,16 @@ onAction
   → Variant r2
   → b
 onAction = V.on
+
+injQuery
+  :: forall sym f a r1 r2
+  . R.Cons sym (FProxy f) r1 r2
+  ⇒ IsSymbol sym
+  ⇒ Functor f
+  ⇒ SProxy sym
+  → f a
+  → VariantF r2 a
+injQuery = VF.inj
 
 caseQuery :: forall a b. VariantF () a → b
 caseQuery = VF.case_
