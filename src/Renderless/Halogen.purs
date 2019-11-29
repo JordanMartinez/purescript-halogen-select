@@ -16,11 +16,10 @@ import Data.Variant as V
 import Halogen (HalogenQ(..))
 import Halogen as H
 import Halogen.HTML as HH
-import Record.Builder as Builder
 import Type.Row as R
 
-type Component surface queryRows inputRows msgRows m =
-  H.Component surface (VariantF queryRows) { | inputRows } (Variant msgRows) m
+type Component surface queryRows input msgRows m =
+  H.Component surface (VariantF queryRows) input (Variant msgRows) m
 
 type ComponentHTML actionRows slots m =
   H.ComponentHTML (Variant actionRows) slots m
@@ -31,7 +30,7 @@ type SelfSlot queryRows msgRows index =
 type HalogenM stateRows actionRows slots msgRows m a =
   H.HalogenM { | stateRows } (Variant actionRows) slots (Variant msgRows) m a
 
-type Spec stateRows actionRows queryRows slots inputRows msgRows m =
+type Spec stateRows actionRows queryRows slots input msgRows m =
   { -- usual Halogen component spec
     render
       :: { | stateRows }
@@ -50,7 +49,7 @@ type Spec stateRows actionRows queryRows slots inputRows msgRows m =
 
     -- optionally handle input on parent re-renders
   , receive
-      :: { | inputRows }
+      :: input
       -> Maybe (Variant actionRows)
 
     -- perform some action when the component initializes.
@@ -63,8 +62,8 @@ type Spec stateRows actionRows queryRows slots inputRows msgRows m =
   }
 
 defaultSpec
-  :: forall stateRows actionRows queryRows slots inputRows msgRows m
-   . Spec stateRows actionRows queryRows slots inputRows msgRows m
+  :: forall stateRows actionRows queryRows slots input msgRows m
+   . Spec stateRows actionRows queryRows slots input msgRows m
 defaultSpec =
   { render: const (HH.text mempty)
   , handleAction: const (pure unit)
@@ -75,12 +74,12 @@ defaultSpec =
   }
 
 component
-  :: forall stateRows actionRows queryRows slots inputRows msgRows m
-   . Builder.Builder { | inputRows } { | stateRows }
-  -> Spec stateRows actionRows queryRows slots inputRows msgRows m
-  -> Component HH.HTML queryRows inputRows msgRows m
-component inputPipeline spec = H.mkComponent
-  { initialState: Builder.build inputPipeline
+  :: forall stateRows actionRows queryRows slots input msgRows m
+   . (input -> { | stateRows })
+  -> Spec stateRows actionRows queryRows slots input msgRows m
+  -> Component HH.HTML queryRows input msgRows m
+component mkInput spec = H.mkComponent
+  { initialState: mkInput
   , render: spec.render
   , eval: case _ of
     Initialize a ->
