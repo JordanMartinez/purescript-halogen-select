@@ -21,6 +21,9 @@ import Select as S
 import Select.Setters as SS
 import Type.Row (type (+))
 
+_component :: SProxy "mainComponent"
+_component = SProxy
+
 type Input = Unit
 type State_ = Unit
 
@@ -45,9 +48,6 @@ type StateRows =
 -- Uncomment one of these...
 -- type State = State_
 type State = { | StateRows }
-
-_mainComponent :: SProxy "mainComponent"
-_mainComponent = SProxy
 
 data Action_
   = Initialize
@@ -104,7 +104,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
         # onV _halogenSelect (S.handleHalogenSelectAction handleHalogenSelectEvent)
 
         -- main component's actions
-        # onV _mainComponent handleMainAction
+        # onV _component handleMainAction
   , handleQuery =
       -- If using another renderless library...
       -- caseVF
@@ -112,13 +112,13 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
         -- # onVF _libraryName (Library.handleLibraryQuery anyAdditionalArgs)
 
         -- main component's queries
-        -- # onVF _mainComponent handleMainQuery
+        -- # onVF _component handleMainQuery
 
       -- If not
       handleMainQuery
-  , receive = Just <<< injV _mainComponent <<< Receive
-  , initialize = Just $ injV _mainComponent Initialize
-  , finalize = Just $ injV _mainComponent Finalize
+  , receive = Just <<< injV _component <<< Receive
+  , initialize = Just $ injV _component Initialize
+  , finalize = Just $ injV _component Finalize
   }
   where
     inputToPipeline :: Input -> { | PipelineRows }
