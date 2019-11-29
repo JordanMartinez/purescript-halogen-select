@@ -18,52 +18,40 @@ import Halogen as H
 import Halogen.HTML as HH
 import Type.Row as R
 
-type Component surface queryRows input message m =
-  H.Component surface (VariantF queryRows) input message m
-
-type ComponentHTML actionRows slots m =
-  H.ComponentHTML (Variant actionRows) slots m
-
-type SelfSlot queryRows message index =
-  H.Slot (VariantF queryRows) message index
-
-type HalogenM stateRows actionRows slots message m a =
-  H.HalogenM { | stateRows } (Variant actionRows) slots message m a
-
-type Spec stateRows actionRows queryRows slots input message m =
+type Spec state action query slots input message m =
   { -- usual Halogen component spec
     render
-      :: { | stateRows }
-      -> ComponentHTML actionRows slots m
+      :: state
+      -> H.ComponentHTML action slots m
 
     -- handle additional actions provided to the component
   , handleAction
-      :: Variant actionRows
-      -> HalogenM stateRows actionRows slots message m Unit
+      :: action
+      -> H.HalogenM state action slots message m Unit
 
     -- handle additional queries provided to the component
   , handleQuery
       :: forall a
-       . VariantF queryRows a
-      -> HalogenM stateRows actionRows slots message m (Maybe a)
+       . query a
+      -> H.HalogenM state action slots message m (Maybe a)
 
     -- optionally handle input on parent re-renders
   , receive
       :: input
-      -> Maybe (Variant actionRows)
+      -> Maybe action
 
     -- perform some action when the component initializes.
   , initialize
-      :: Maybe (Variant actionRows)
+      :: Maybe action
 
     -- optionally perform some action on initialization. disabled by default.
   , finalize
-      :: Maybe (Variant actionRows)
+      :: Maybe action
   }
 
 defaultSpec
-  :: forall stateRows actionRows queryRows slots input message m
-   . Spec stateRows actionRows queryRows slots input message m
+  :: forall state action query slots input message m
+   . Spec state action query slots input message m
 defaultSpec =
   { render: const (HH.text mempty)
   , handleAction: const (pure unit)
@@ -74,10 +62,10 @@ defaultSpec =
   }
 
 component
-  :: forall stateRows actionRows queryRows slots input message m
-   . (input -> { | stateRows })
-  -> Spec stateRows actionRows queryRows slots input message m
-  -> Component HH.HTML queryRows input message m
+  :: forall state action query slots input message m
+   . (input -> state)
+  -> Spec state action query slots input message m
+  -> H.Component HH.HTML query input message m
 component mkInput spec = H.mkComponent
   { initialState: mkInput
   , render: spec.render
@@ -97,12 +85,12 @@ component mkInput spec = H.mkComponent
 -- | Convenience function that reduces boilerplate.
 -- | `raiseV symbol value` == `H.raise (injV symbol value)`
 raiseV ::
-  forall symbol value otherRows stateRows actionRows slots msgRows m
+  forall symbol value otherRows state action slots msgRows m
   . R.Cons symbol value otherRows msgRows
   ⇒ IsSymbol symbol
   ⇒ SProxy symbol
   → value
-  → HalogenM stateRows actionRows slots (Variant msgRows) m Unit
+  → H.HalogenM state action slots (Variant msgRows) m Unit
 raiseV symbol value = H.raise (injV symbol value)
 
 injV

@@ -11,6 +11,7 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Symbol (SProxy(..))
 import Data.Time.Duration (Milliseconds)
 import Data.Traversable (for_, traverse, traverse_)
+import Data.Variant (Variant)
 import Effect.Aff (Fiber, delay, error, forkAff, killFiber)
 import Effect.Aff.AVar (AVar)
 import Effect.Aff.AVar as AVar
@@ -21,7 +22,6 @@ import Effect.Ref as Ref
 import Halogen as H
 import Prim.Row as Row
 import Record.Builder as Builder
-import Renderless.Halogen (HalogenM)
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
 import Web.Event.Event (preventDefault)
@@ -120,7 +120,7 @@ mkHalogenSelectInput =
 initializeHalogenSelect
   :: forall stateRows actionRows slots message m
    . MonadEffect m
-  => HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots message m Unit
+  => H.HalogenM { | HS_STATE + stateRows } (Variant (HS_ACTION + actionRows)) slots message m Unit
 initializeHalogenSelect = do
   ref <- H.liftEffect $ Ref.new Nothing
   H.modify_ _ { debounceRef = Just ref }
@@ -131,8 +131,8 @@ handleHalogenSelectAction
   => Row.Lacks "debounceRef" stateRows
   => Row.Lacks "visibility" stateRows
   => Row.Lacks "highlightedIndex" stateRows
-  => (Event -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots message m Unit)
-  -> Action -> HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots message m Unit
+  => (Event -> H.HalogenM { | HS_STATE + stateRows } (Variant (HS_ACTION + actionRows)) slots message m Unit)
+  -> Action -> H.HalogenM { | HS_STATE + stateRows } (Variant (HS_ACTION + actionRows)) slots message m Unit
 handleHalogenSelectAction handleEvent = case _ of
   Search str -> do
     st <- H.get
