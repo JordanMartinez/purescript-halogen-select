@@ -3,63 +3,120 @@ module Template.Select.Commented where
 import Prelude
 
 import Data.Array (index, length, mapWithIndex)
+import Data.Functor.Variant (FProxy)
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Symbol (SProxy(..))
 import Effect.Aff (Aff)
 import Halogen (ClassName(..))
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
+import Record.Builder (Builder)
+import Record.Builder as Builder
+import Renderless.Halogen (caseAction, caseQuery, injAction, onAction, onQuery)
+import Renderless.Halogen as RH
+import Select (HS_ACTION, HS_INPUT, HS_STATE, _halogenSelect)
 import Select as S
 import Select.Setters as SS
+import Type.Row (type (+))
 
 type Input = Unit
-
-type AddedState =
+type MAIN_STATE_ROWS r =
   ( buttonLabel :: String
   , selection :: Maybe String
   , items :: Array String
+  | r
+  )
+type InputRows =
+  ( HS_INPUT
+  + MAIN_STATE_ROWS
+  + ()
   )
 
+type StateRows =
+  ( HS_STATE
+  + MAIN_STATE_ROWS
+  + ()
+  )
+
+_mainComponent :: SProxy "mainComponent"
+_mainComponent = SProxy
+
 data Action
-  = DoStuff
-  | Initialize
+  = Initialize
   | Finalize
   | Receive Input
+
+type ActionRows =
+  ( mainComponent :: Action
+  | HS_ACTION
+  + ()
+  )
 
 data Query a
   = Reply (Unit -> a)
   | Command a
 
-type Message = Void
+type QueryRows =
+  ( mainComponent :: FProxy Query
+  -- |
+  -- + ()
+  )
+
+type Message = Int
+type MsgRows =
+  ( mainComponent :: Message
+  -- |
+  -- +
+  )
 type ChildSlots = ()
 type Monad = Aff
-type SelfSlot index = S.Slot Query ChildSlots Message index
+type SelfSlot index = RH.SelfSlot QueryRows MsgRows index
 
-component :: S.Component Query ChildSlots Input Message Monad
-component = S.component mkInput $ S.defaultSpec
+component :: RH.Component HH.HTML QueryRows Input MsgRows Monad
+component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
   { render = render
-  , handleAction = handleAction
-  , handleQuery = handleQuery
-  , handleEvent = handleEvent
-  , receive = Just <<< Receive
-  , initialize = Just Initialize
-  , finalize = Just Finalize
+  , handleAction =
+      caseAction
+        -- 3rd-party renderless components' actions
+        # onAction _halogenSelect (S.handleHalogenSelectAction handleHalogenSelectEvent)
+
+        -- main component's actions
+        # onAction _mainComponent handleMainAction
+  , handleQuery =
+      caseQuery
+        -- 3rd-party renderless components' queries
+
+        -- main component's queries
+        # onQuery _mainComponent handleMainQuery
+  , receive = Just <<< injAction _mainComponent <<< Receive
+  , initialize = Just $ injAction _mainComponent Initialize
+  , finalize = Just $ injAction _mainComponent Finalize
   }
   where
-    mkInput :: Input -> S.Input AddedState
-    mkInput _ =
-      { inputType: S.Toggle
+    inputToPipeline :: Input -> { | InputRows }
+    inputToPipeline _ =
+      -- labels for main component's non-3rd-party-library state
+      { buttonLabel: "-- Select --"
+      , selection: Nothing
+      , items: [ "1", "2", "3" ]
+
+      -- == Labels for 3rd-party renderless components ==
+      -- Halogen Select input
+      , inputType: S.Toggle
       , search: Nothing
       , debounceTime: Nothing
       , getItemCount: \state -> length state.items
 
-      -- labels from AddedState
-      , buttonLabel: "-- Select --"
-      , selection: Nothing
-      , items: [ "1", "2", "3" ]
+      -- Other library input
       }
 
-    render :: S.State AddedState -> S.ComponentHTML Action ChildSlots Monad
+    -- 3rd-party renderless components' `input -> state` functions
+    pipeline :: Builder { | InputRows } { | StateRows }
+    pipeline = S.mkHalogenSelectInput
+      -- >>> OtherComponent.mkInput
+
+    render :: { | StateRows } -> RH.ComponentHTML ActionRows ChildSlots Monad
     render state =
       HH.div
         [ HP.class_ $ ClassName "Dropdown" ]
@@ -92,31 +149,33 @@ component = S.component mkInput $ S.defaultSpec
           )
           [ HH.text item ]
 
-    handleAction :: Action -> S.HalogenM AddedState Action ChildSlots Message Monad Unit
-    handleAction = case _ of
-      DoStuff -> do
-        pure unit
-      Initialize -> do
-        pure unit
-      Finalize -> do
-        pure unit
-      Receive input -> do
-        pure unit
-
-    handleQuery :: forall a. Query a -> S.HalogenM AddedState Action ChildSlots Message Monad (Maybe a)
-    handleQuery = case _ of
-      Reply reply -> do
-        pure $ Just $ reply unit
-      Command next -> do
-        pure $ Just next
-
-    handleEvent :: S.Event -> S.HalogenM AddedState Action ChildSlots Message Monad Unit
-    handleEvent = case _ of
+    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleHalogenSelectEvent = case _ of
       S.Searched str -> do
         pure unit
       S.Selected idx -> do
         H.modify_ \s -> s { selection = index s.items idx }
-      S.VisibilityChanged S.Off -> do
+      S.VisibilityChanged visibility -> do
         pure unit
-      S.VisibilityChanged S.On -> do
+
+    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad Unit
+    handleMainAction = case _ of
+      Initialize ->
+        -- initialize 3rd-party renderless components (if needed)
+        S.initializeHalogenSelect
+
+        -- initialize main component
+      Finalize ->
+        -- finalize main component
+
+        -- finalized 3rd-party renderless components (if needed)
         pure unit
+      Receive input ->
+        pure unit
+
+    handleMainQuery :: forall a. Query a -> RH.HalogenM StateRows ActionRows ChildSlots MsgRows Monad (Maybe a)
+    handleMainQuery = case _ of
+      Reply reply -> do
+        pure $ Just $ reply unit
+      Command next -> do
+        pure $ Just next
