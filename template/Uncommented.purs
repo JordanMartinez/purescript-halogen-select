@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Array (index, length, mapWithIndex)
 import Data.Functor.Variant (FProxy)
+import Data.Variant (Variant)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Symbol (SProxy(..))
 import Effect.Aff (Aff)
@@ -13,14 +14,14 @@ import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Record.Builder (Builder)
 import Record.Builder as Builder
-import HalogenModular (caseV, caseVF, injV, onV, onVF)
+import HalogenModular (caseV, injV, onV)
 import HalogenModular as HM
 import Select (HS_ACTION, HS_INPUT, HS_STATE, _halogenSelect)
 import Select as S
 import Select.Setters as SS
 import Type.Row (type (+))
 
-type Input_ = Unit
+type Input = Unit
 type State_ = Unit
 
 type StateRows_ r =
@@ -31,13 +32,13 @@ type StateRows_ r =
   )
 type InputRows =
   ( HS_INPUT
-  + MAIN_STATE_ROWS
+  + StateRows_
   + ()
   )
 
 type StateRows =
   ( HS_STATE
-  + MAIN_STATE_ROWS
+  + StateRows_
   + ()
   )
 
@@ -54,7 +55,7 @@ data Action_
   | Receive Input
 
 type ActionRows =
-  ( mainComponent :: Action
+  ( mainComponent :: Action_
   | HS_ACTION
   + ()
   )
@@ -92,7 +93,7 @@ type Message = Msg_
 type ChildSlots = ()
 type Monad = Aff
 
-type SelfSlot index = H.SelfSlot Query Message index
+type SelfSlot index = H.Slot Query Message index
 
 component :: H.Component HH.HTML Query Input Message Monad
 component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defaultSpec
@@ -105,12 +106,16 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
         -- main component's actions
         # onV _mainComponent handleMainAction
   , handleQuery =
-      caseVF
+      -- If using another renderless library...
+      -- caseVF
         -- 3rd-party renderless components' queries
         -- # onVF _libraryName (Library.handleLibraryQuery anyAdditionalArgs)
 
         -- main component's queries
-        # onVF _mainComponent handleMainQuery
+        -- # onVF _mainComponent handleMainQuery
+
+      -- If not
+      handleMainQuery
   , receive = Just <<< injV _mainComponent <<< Receive
   , initialize = Just $ injV _mainComponent Initialize
   , finalize = Just $ injV _mainComponent Finalize
@@ -138,7 +143,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
     pipeline = S.mkHalogenSelectInput
       -- >>> OtherComponent.mkInput
 
-    render :: { | StateRows } -> H.ComponentHTML ActionRows ChildSlots Monad
+    render :: { | StateRows } -> H.ComponentHTML Action ChildSlots Monad
     render state =
       HH.div
         [ HP.class_ $ ClassName "Dropdown" ]
@@ -171,7 +176,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
           )
           [ HH.text item ]
 
-    handleHalogenSelectEvent :: S.Event -> H.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
+    handleHalogenSelectEvent :: S.Event -> H.HalogenM State Action ChildSlots Message Monad Unit
     handleHalogenSelectEvent = case _ of
       S.Searched str -> do
         pure unit
@@ -180,7 +185,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
       S.VisibilityChanged visibility -> do
         pure unit
 
-    handleMainAction :: Action -> H.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
+    handleMainAction :: Action_ -> H.HalogenM State Action ChildSlots Message Monad Unit
     handleMainAction = case _ of
       Initialize ->
         -- initialize 3rd-party renderless components (if needed)
@@ -195,7 +200,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
       Receive input ->
         pure unit
 
-    handleMainQuery :: forall a. Query a -> H.HalogenM StateRows ActionRows ChildSlots Message Monad (Maybe a)
+    handleMainQuery :: forall a. Query a -> H.HalogenM State Action ChildSlots Message Monad (Maybe a)
     handleMainQuery = case _ of
       Reply reply -> do
         pure $ Just $ reply unit
