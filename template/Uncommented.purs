@@ -30,7 +30,7 @@ type StateRows_ r =
   , items :: Array String
   | r
   )
-type InputRows =
+type PipelineRows =
   ( HS_INPUT
   + StateRows_
   + ()
@@ -121,7 +121,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
   , finalize = Just $ injV _mainComponent Finalize
   }
   where
-    inputToPipeline :: Input -> { | InputRows }
+    inputToPipeline :: Input -> { | PipelineRows }
     inputToPipeline _ =
       -- labels for main component's non-3rd-party-library state
       { buttonLabel: "-- Select --"
@@ -139,7 +139,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
       }
 
     -- 3rd-party renderless components' `input -> state` functions
-    pipeline :: Builder { | InputRows } { | StateRows }
+    pipeline :: Builder { | PipelineRows } { | StateRows }
     pipeline = S.mkHalogenSelectInput
       -- >>> OtherComponent.mkInput
 
