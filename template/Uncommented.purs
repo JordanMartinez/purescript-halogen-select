@@ -13,7 +13,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Record.Builder (Builder)
 import Record.Builder as Builder
-import Renderless.Halogen (caseAction, caseQuery, injAction, onAction, onQuery)
+import Renderless.Halogen (caseV, caseVF, injV, onV, onVF)
 import Renderless.Halogen as RH
 import Select (HS_ACTION, HS_INPUT, HS_STATE, _halogenSelect)
 import Select as S
@@ -77,21 +77,21 @@ component :: RH.Component HH.HTML QueryRows Input MsgRows Monad
 component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
   { render = render
   , handleAction =
-      caseAction
+      caseV
         -- 3rd-party renderless components' actions
-        # onAction _halogenSelect (S.handleHalogenSelectAction handleHalogenSelectEvent)
+        # onV _halogenSelect (S.handleHalogenSelectAction handleHalogenSelectEvent)
 
         -- main component's actions
-        # onAction _mainComponent handleMainAction
+        # onV _mainComponent handleMainAction
   , handleQuery =
-      caseQuery
+      caseVF
         -- 3rd-party renderless components' queries
 
         -- main component's queries
-        # onQuery _mainComponent handleMainQuery
-  , receive = Just <<< injAction _mainComponent <<< Receive
-  , initialize = Just $ injAction _mainComponent Initialize
-  , finalize = Just $ injAction _mainComponent Finalize
+        # onVF _mainComponent handleMainQuery
+  , receive = Just <<< injV _mainComponent <<< Receive
+  , initialize = Just $ injV _mainComponent Initialize
+  , finalize = Just $ injV _mainComponent Finalize
   }
   where
     inputToPipeline :: Input -> { | InputRows }

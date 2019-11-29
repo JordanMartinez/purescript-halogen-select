@@ -94,19 +94,19 @@ component mkInput spec = H.mkComponent
       unCoyoneda (\g → map (maybe (f unit) g) <<< spec.handleQuery) req
   }
 
-injAction
+injV
   :: forall sym a r1 r2
   . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → a
   → Variant r2
-injAction = V.inj
+injV = V.inj
 
-caseAction :: forall a. Variant () → a
-caseAction = V.case_
+caseV :: forall a. Variant () → a
+caseV = V.case_
 
-onAction
+onV
   :: forall sym a b r1 r2
   . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
@@ -115,9 +115,9 @@ onAction
   → (Variant r1 → b)
   → Variant r2
   → b
-onAction = V.on
+onV = V.on
 
-injQuery
+injVF
   :: forall sym f a r1 r2
   . R.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
@@ -125,12 +125,12 @@ injQuery
   ⇒ SProxy sym
   → f a
   → VariantF r2 a
-injQuery = VF.inj
+injVF = VF.inj
 
-caseQuery :: forall a b. VariantF () a → b
-caseQuery = VF.case_
+caseVF :: forall a b. VariantF () a → b
+caseVF = VF.case_
 
-onQuery
+onVF
   :: forall sym f a b r1 r2
    . R.Cons sym (FProxy f) r1 r2
   => IsSymbol sym
@@ -139,4 +139,4 @@ onQuery
   -> (VariantF r1 a -> b)
   -> VariantF r2 a
   -> b
-onQuery = VF.on
+onVF = VF.on
