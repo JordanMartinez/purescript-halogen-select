@@ -3,7 +3,7 @@ module Template.Select.Uncommented where
 import Prelude
 
 import Data.Array (index, length, mapWithIndex)
-import Data.Functor.Variant (FProxy)
+-- import Data.Functor.Variant (FProxy)
 import Data.Variant (Variant)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Symbol (SProxy(..))
@@ -25,7 +25,10 @@ _component :: SProxy "mainComponent"
 _component = SProxy
 
 type Input = Unit
-type State_ = Unit
+
+-- Uncomment one of these...
+-- type State = Unit -- if not using 3rd-party library that needs its own state
+type State = { | StateRows }
 
 type StateRows_ r =
   ( buttonLabel :: String
@@ -46,8 +49,8 @@ type StateRows =
   )
 
 -- Uncomment one of these...
--- type State = State_
-type State = { | StateRows }
+-- type Action = Action_
+type Action = Variant ActionRows
 
 data Action_
   = Initialize
@@ -61,22 +64,22 @@ type ActionRows =
   )
 
 -- Uncomment one of these...
--- type Action = Action_
-type Action = Variant ActionRows
+type Query = Query_
+-- type Query = VariantF QueryRows
 
 data Query_ a
   = Reply (Unit -> a)
   | Command a
 
-type QueryRows =
-  ( mainComponent :: FProxy Query
+-- type QueryRows =
+--   ( mainComponent :: FProxy Query
   -- |
   -- + ()
-  )
+  -- )
 
 -- Uncomment one of these...
-type Query = Query_
--- type Query = VariantF QueryRows
+type Message = Msg_
+-- type Message = Variant MsgRows
 
 type Msg_ = Int
 type MsgRows =
@@ -84,11 +87,6 @@ type MsgRows =
   -- |
   -- +
   )
-
--- Uncomment one of these...
-type Message = Msg_
--- type Message = Variant MsgRows
-
 
 type ChildSlots = ()
 type Monad = Aff
@@ -143,7 +141,7 @@ component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defau
     pipeline = S.mkHalogenSelectInput
       -- >>> OtherComponent.mkInput
 
-    render :: { | StateRows } -> H.ComponentHTML Action ChildSlots Monad
+    render :: State -> H.ComponentHTML Action ChildSlots Monad
     render state =
       HH.div
         [ HP.class_ $ ClassName "Dropdown" ]
