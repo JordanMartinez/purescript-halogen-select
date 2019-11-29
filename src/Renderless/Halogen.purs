@@ -21,6 +21,9 @@ type Component surface queryRows inputRows msgRows m =
 type ComponentHTML actionRows slots m =
   H.ComponentHTML (Variant actionRows) slots m
 
+type SelfSlot queryRows msgRows index =
+  H.Slot (VariantF queryRows) (Variant msgRows) index
+
 type HalogenM stateRows actionRows slots msgRows m a =
   H.HalogenM { | stateRows } (Variant actionRows) slots (Variant msgRows) m a
 
