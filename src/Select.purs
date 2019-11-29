@@ -15,6 +15,7 @@ import Effect.Aff (Fiber, delay, error, forkAff, killFiber)
 import Effect.Aff.AVar (AVar)
 import Effect.Aff.AVar as AVar
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class (class MonadEffect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Halogen as H
@@ -115,6 +116,14 @@ mkHalogenSelectInput =
       >>> Builder.insert (SProxy :: _ "debounceRef") Nothing
       >>> Builder.insert (SProxy :: _ "visibility") Off
       >>> Builder.insert (SProxy :: _ "highlightedIndex") Nothing
+
+initializeHalogenSelect
+  :: forall stateRows actionRows slots msgRows m
+   . MonadEffect m
+  => HalogenM (HS_STATE + stateRows) (HS_ACTION + actionRows) slots msgRows m Unit
+initializeHalogenSelect = do
+  ref <- H.liftEffect $ Ref.new Nothing
+  H.modify_ _ { debounceRef = Just ref }
 
 handleHalogenSelectAction
   :: forall stateRows actionRows slots msgRows m
