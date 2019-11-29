@@ -1,19 +1,23 @@
 module Renderless.Halogen where
 
 import Control.Applicative (pure)
-import Data.Unit (Unit, unit)
-import Data.Maybe (Maybe(..), maybe)
-import Data.Monoid (mempty)
-import Data.Function ((<<<), const)
 import Data.Coyoneda (unCoyoneda)
 import Data.Foldable (traverse_)
+import Data.Function ((<<<), const)
 import Data.Functor (($>), map)
-import Data.Functor.Variant (VariantF)
+import Data.Functor.Variant (FProxy, VariantF)
+import Data.Functor.Variant as VF
+import Data.Maybe (Maybe(..), maybe)
+import Data.Monoid (mempty)
+import Data.Symbol (class IsSymbol, SProxy)
+import Data.Unit (Unit, unit)
 import Data.Variant (Variant)
+import Data.Variant as V
 import Halogen (HalogenQ(..))
 import Halogen as H
 import Halogen.HTML as HH
 import Record.Builder as Builder
+import Type.Row as R
 
 type Component surface queryRows inputRows msgRows m =
   H.Component surface (VariantF queryRows) { | inputRows } (Variant msgRows) m
@@ -90,3 +94,31 @@ component inputPipeline spec = H.mkComponent
     Query req f ->
       unCoyoneda (\g → map (maybe (f unit) g) <<< spec.handleQuery) req
   }
+
+caseAction :: forall a. Variant () → a
+caseAction = V.case_
+
+onAction
+  :: forall sym a b r1 r2
+  . R.Cons sym a r1 r2
+  ⇒ IsSymbol sym
+  ⇒ SProxy sym
+  → (a → b)
+  → (Variant r1 → b)
+  → Variant r2
+  → b
+onAction = V.on
+
+caseQuery :: forall a b. VariantF () a → b
+caseQuery = VF.case_
+
+onQuery
+  :: forall sym f a b r1 r2
+   . R.Cons sym (FProxy f) r1 r2
+  => IsSymbol sym
+  => SProxy sym
+  -> (f a -> b)
+  -> (VariantF r1 a -> b)
+  -> VariantF r2 a
+  -> b
+onQuery = VF.on
