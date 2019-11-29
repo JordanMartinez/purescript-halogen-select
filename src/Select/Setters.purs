@@ -10,7 +10,7 @@ import Halogen as H
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Prelude (append, ($), (<<<))
-import Renderless.Halogen (injV)
+import HalogenModular (injV)
 import Select (Action(..), HS_ACTION, Target(..), _halogenSelect, Visibility(..))
 import Type.Row (type (+))
 import Web.Event.Event as E

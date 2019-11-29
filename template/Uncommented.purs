@@ -13,15 +13,17 @@ import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Record.Builder (Builder)
 import Record.Builder as Builder
-import Renderless.Halogen (caseV, caseVF, injV, onV, onVF)
-import Renderless.Halogen as RH
+import HalogenModular (caseV, caseVF, injV, onV, onVF)
+import HalogenModular as HM
 import Select (HS_ACTION, HS_INPUT, HS_STATE, _halogenSelect)
 import Select as S
 import Select.Setters as SS
 import Type.Row (type (+))
 
-type Input = Unit
-type MAIN_STATE_ROWS r =
+type Input_ = Unit
+type State_ = Unit
+
+type StateRows_ r =
   ( buttonLabel :: String
   , selection :: Maybe String
   , items :: Array String
@@ -39,10 +41,14 @@ type StateRows =
   + ()
   )
 
+-- Uncomment one of these...
+-- type State = State_
+type State = { | StateRows }
+
 _mainComponent :: SProxy "mainComponent"
 _mainComponent = SProxy
 
-data Action
+data Action_
   = Initialize
   | Finalize
   | Receive Input
@@ -53,7 +59,11 @@ type ActionRows =
   + ()
   )
 
-data Query a
+-- Uncomment one of these...
+-- type Action = Action_
+type Action = Variant ActionRows
+
+data Query_ a
   = Reply (Unit -> a)
   | Command a
 
@@ -63,21 +73,29 @@ type QueryRows =
   -- + ()
   )
 
-type Msg = Int
--- type MsgRows =
---   ( mainComponent :: Message
---   -- |
---   -- +
---   )
-type Message = Msg
+-- Uncomment one of these...
+type Query = Query_
+-- type Query = VariantF QueryRows
+
+type Msg_ = Int
+type MsgRows =
+  ( mainComponent :: Message
+  -- |
+  -- +
+  )
+
+-- Uncomment one of these...
+type Message = Msg_
 -- type Message = Variant MsgRows
+
+
 type ChildSlots = ()
 type Monad = Aff
 
-type SelfSlot index = RH.SelfSlot QueryRows Message index
+type SelfSlot index = H.SelfSlot Query Message index
 
-component :: RH.Component HH.HTML QueryRows Input Message Monad
-component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defaultSpec
+component :: H.Component HH.HTML Query Input Message Monad
+component = HM.component (Builder.build pipeline <<< inputToPipeline) $ HM.defaultSpec
   { render = render
   , handleAction =
       caseV
@@ -89,6 +107,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
   , handleQuery =
       caseVF
         -- 3rd-party renderless components' queries
+        -- # onVF _libraryName (Library.handleLibraryQuery anyAdditionalArgs)
 
         -- main component's queries
         # onVF _mainComponent handleMainQuery
@@ -119,7 +138,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
     pipeline = S.mkHalogenSelectInput
       -- >>> OtherComponent.mkInput
 
-    render :: { | StateRows } -> RH.ComponentHTML ActionRows ChildSlots Monad
+    render :: { | StateRows } -> H.ComponentHTML ActionRows ChildSlots Monad
     render state =
       HH.div
         [ HP.class_ $ ClassName "Dropdown" ]
@@ -152,7 +171,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
           )
           [ HH.text item ]
 
-    handleHalogenSelectEvent :: S.Event -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
+    handleHalogenSelectEvent :: S.Event -> H.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleHalogenSelectEvent = case _ of
       S.Searched str -> do
         pure unit
@@ -161,7 +180,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
       S.VisibilityChanged visibility -> do
         pure unit
 
-    handleMainAction :: Action -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
+    handleMainAction :: Action -> H.HalogenM StateRows ActionRows ChildSlots Message Monad Unit
     handleMainAction = case _ of
       Initialize ->
         -- initialize 3rd-party renderless components (if needed)
@@ -176,7 +195,7 @@ component = RH.component (Builder.build pipeline <<< inputToPipeline) $ RH.defau
       Receive input ->
         pure unit
 
-    handleMainQuery :: forall a. Query a -> RH.HalogenM StateRows ActionRows ChildSlots Message Monad (Maybe a)
+    handleMainQuery :: forall a. Query a -> H.HalogenM StateRows ActionRows ChildSlots Message Monad (Maybe a)
     handleMainQuery = case _ of
       Reply reply -> do
         pure $ Just $ reply unit

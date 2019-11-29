@@ -123,6 +123,13 @@ let upstream =
 
 let overrides = {=}
 
-let additions = {=}
+let additions =
+  { halogen-modular =
+    { dependencies =
+      ["halogen", "free", "foldable-traversable", "variant", "typelevel-prelude"]
+    , repo = "https://github.com/jordanmartinez/purescript-halogen-modular.git"
+    , version = "v1.0.0"
+    }
+  }
 
 in  upstream // overrides // additions

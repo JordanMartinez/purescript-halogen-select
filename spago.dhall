@@ -10,6 +10,7 @@ You can edit this file as you like.
     , "debug"
     , "effect"
     , "halogen"
+    , "halogen-modular"
     , "psci-support"
     , "record"
     , "variant"
