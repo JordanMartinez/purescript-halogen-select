@@ -4,13 +4,14 @@ import Prelude
 
 import Data.Array ((!!), mapWithIndex, length)
 import Data.Const (Const)
-import Data.Tuple.Nested ((/\))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (guard)
+import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
+import FRP.Event (subscribe)
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.Hooks (HookM, StateToken, useState)
+import Halogen.Hooks (HookM, StateToken, useLifecycleEffect, useState)
 import Halogen.Hooks as Hooks
 import Internal.CSS (class_, classes_, whenElem)
 import SelectHook (SelectState, useSelect)
@@ -35,8 +36,15 @@ component = Hooks.component \{ items, buttonLabel } -> Hooks.do
                       , search: Nothing
                       , debounceTime: Nothing
                       , getItemCount: pure (length items)
-                      , handleEvent: handleEvent items tSelection
                       }
+
+  useLifecycleEffect do
+    unsubscribeId <- H.liftEffect $ subscribe select.onSelectedIdxChange \ix -> do
+      -- can't use HookM here... has to be Effect monad
+      -- 
+      --
+    pure --unsubscribe unsubscribeId
+
 
   let
     renderToggle =
